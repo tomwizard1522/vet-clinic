@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import API_URL from './config';
+import API_URL from '../config';
 
 const DoctorSchedule = () => {
     const [appointments, setAppointments] = useState([]);

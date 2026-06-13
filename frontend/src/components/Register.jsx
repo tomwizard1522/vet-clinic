@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import API_URL from './config';
+import API_URL from '../config';
 
 const Register = () => {
     const [formData, setFormData] = useState({
