@@ -158,7 +158,7 @@ const OwnerCabinet = () => {
             )}
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                {Array.isArray(pets) && pets.map(pet => (
+                {Array.isArray(pets) && pets.filter(pet => pet && pet.id).map(pet => (
                     <div key={pet.id} style={{ border: '1px solid #ddd', borderRadius: '10px', padding: '15px', background: 'white', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                             <div>
@@ -168,8 +168,13 @@ const OwnerCabinet = () => {
                                 <p><strong>Вес:</strong> {pet.weight ? `${pet.weight} кг` : '—'}</p>
                             </div>
                             <div style={{ display: 'flex', gap: '5px' }}>
-                                <Link to={`/pet/${pet.id}`}>
-                                    <button style={{ background: '#3498db', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Карта</button>
+                                <Link to={pet?.id ? `/pet/${pet.id}` : '#'}>
+                                    <button 
+                                        disabled={!pet?.id}
+                                        style={{ background: pet?.id ? '#3498db' : '#95a5a6', cursor: pet?.id ? 'pointer' : 'not-allowed' }}
+                                    >
+                                        Карта
+                                    </button>
                                 </Link>
                                 <button onClick={() => handleDeletePet(pet.id)} style={{ background: '#e74c3c', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Удалить</button>
                             </div>

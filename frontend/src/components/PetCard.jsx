@@ -29,9 +29,13 @@ const PetCard = () => {
     });
 
     useEffect(() => {
+        if (!id || id === 'undefined') {
+            console.error('❌ Нет ID питомца, возвращаемся в кабинет');
+            navigate('/cabinet');
+        }
         fetchPetData();
         fetchDoctors();
-    }, [id]);
+    }, [id, navigate]);
 
     const fetchPetData = async () => {
         try {
