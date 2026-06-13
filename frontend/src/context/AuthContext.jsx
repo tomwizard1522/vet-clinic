@@ -1,8 +1,3 @@
-// Контекст для управления состоянием авторизации
-
-// Хранит данные пользователя, токен, функции входа/выхода/регистрации
-// При загрузке страницы проверяет сохранённый токен в localStorage
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import API_URL from '../config';
@@ -14,8 +9,9 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [token, setToken] = useState(localStorage.getItem('token'));  // Восстанавливаем токен при загрузке
+    const [token, setToken] = useState(localStorage.getItem('token'));
 
+    // При загрузке страницы проверяем токен
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -27,7 +23,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
         try {
-            const response = await axios.get('${API_URL}/api/auth/me');
+            const response = await axios.get(`${API_URL}/api/auth/me`);
             setUser(response.data);
         } catch (error) {
             console.error('Ошибка загрузки пользователя:', error);
@@ -42,13 +38,11 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post(
-                `${API_URL}/api/auth/login`, 
-                { email, password },  // ← именно так, объект
-                { headers: { 'Content-Type': 'application/json' } }
-            );
+            const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
             const { token, user } = response.data;
             localStorage.setItem('token', token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            setToken(token);
             setUser(user);
             return user;
         } catch (error) {
@@ -59,13 +53,11 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
-            const response = await axios.post(
-                `${API_URL}/api/auth/register`,
-                userData,  // ← объект с полями email, password, full_name, phone, role
-                { headers: { 'Content-Type': 'application/json' } }
-            );
+            const response = await axios.post(`${API_URL}/api/auth/register`, userData);
             const { token, user } = response.data;
             localStorage.setItem('token', token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            setToken(token);
             setUser(user);
             return user;
         } catch (error) {
