@@ -72,29 +72,39 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
 });
 
 // Скачивание файла
-// Express автоматически устанавливает Content-Disposition: attachment
-// Браузер предложит сохранить файл
+const fs = require('fs');
 router.get('/download/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         
+        console.log('📥 Запрос на скачивание, ID:', id);
+        
+        // Находим файл в БД
         const result = await pool.query(
             'SELECT file_path, file_name FROM files WHERE id = $1',
             [id]
         );
         
         if (result.rows.length === 0) {
+            console.log('❌ Файл с ID', id, 'не найден в БД');
             return res.status(404).json({ error: 'Файл не найден' });
         }
         
         const { file_path, file_name } = result.rows[0];
+        console.log('📁 Путь к файлу:', file_path);
         
-        // Отправляем файл
+        // Проверяем, существует ли файл на диске
+        if (!fs.existsSync(file_path)) {
+            console.log('❌ Файл не существует на диске:', file_path);
+            return res.status(404).json({ error: 'Файл не найден на сервере' });
+        }
+        
+        console.log('✅ Файл найден, отправка...');
         res.download(file_path, file_name);
         
     } catch (error) {
-        console.error('Ошибка скачивания:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        console.error('❌ Ошибка скачивания:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
