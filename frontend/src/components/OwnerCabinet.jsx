@@ -40,6 +40,8 @@ const OwnerCabinet = () => {
             setAppointments(appointmentsRes.data);
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
+            setPets([]);
+            setAppointments([]);
         } finally {
             setLoading(false);
         }
@@ -144,7 +146,7 @@ const OwnerCabinet = () => {
             )}
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                {pets.map(pet => (
+                {Array.isArray(pets) && pets.map(pet => (
                     <div key={pet.id} style={{ border: '1px solid #ddd', borderRadius: '10px', padding: '15px', background: 'white', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                             <div>
@@ -187,7 +189,7 @@ const OwnerCabinet = () => {
                                 <td colSpan="4" style={{ padding: '30px', textAlign: 'center' }}>Нет записей к врачу</td>
                             </tr>
                         ) : (
-                            appointments.map(apt => (
+                            Array.isArray(appointments) && appointments.map(apt => (
                                 <tr key={apt.id} style={{ borderBottom: '1px solid #ddd' }}>
                                     <td style={{ padding: '12px' }}>{new Date(apt.appointment_time).toLocaleString()}</td>
                                     <td style={{ padding: '12px' }}>{apt.pet_name}</td>
