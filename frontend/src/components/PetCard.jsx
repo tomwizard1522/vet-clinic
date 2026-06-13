@@ -89,37 +89,77 @@ const PetCard = () => {
 
     if (loading) return <div className="loading">Загрузка...</div>;
     if (!pet) return <div>Питомец не найден</div>;
-    
+
     const downloadFile = async (fileId, fileName) => {
+        console.log('=== НАЧАЛО СКАЧИВАНИЯ ===');
+        console.log('1. fileId:', fileId);
+        console.log('2. fileName:', fileName);
+        
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/api/files/download/${fileId}`, {
+            console.log('3. Токен получен:', token ? `Да (${token.substring(0, 20)}...)` : 'НЕТ ТОКЕНА');
+            
+            if (!token) {
+                alert('Вы не авторизованы. Пожалуйста, войдите снова.');
+                return;
+            }
+            
+            const url = `${API_URL}/api/files/download/${fileId}`;
+            console.log('4. URL запроса:', url);
+            
+            console.log('5. Отправка запроса...');
+            const response = await fetch(url, {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             });
             
+            console.log('6. Статус ответа:', response.status);
+            console.log('7. Заголовки ответа:', [...response.headers.entries()]);
+            
             if (!response.ok) {
-                throw new Error('Ошибка скачивания');
+                let errorText;
+                try {
+                    errorText = await response.text();
+                } catch (e) {
+                    errorText = 'Не удалось получить текст ошибки';
+                }
+                console.error('8. Ошибка сервера:', response.status, errorText);
+                throw new Error(`Сервер вернул ${response.status}: ${errorText.substring(0, 100)}`);
             }
             
-            // Получаем blob (бинарные данные файла)
+            console.log('9. Получение blob...');
             const blob = await response.blob();
+            console.log('10. Размер blob:', blob.size, 'байт');
             
-            // Создаём ссылку для скачивания
-            const url = window.URL.createObjectURL(blob);
+            if (blob.size === 0) {
+                throw new Error('Файл пустой');
+            }
+            
+            const downloadUrl = window.URL.createObjectURL(blob);
+            console.log('11. ObjectURL создан:', downloadUrl);
+            
             const a = document.createElement('a');
-            a.href = url;
+            a.href = downloadUrl;
             a.download = fileName;
             document.body.appendChild(a);
+            console.log('12. Элемент создан, клик...');
             a.click();
             document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            console.log('✅ 13. СКАЧИВАНИЕ УСПЕШНО ЗАВЕРШЕНО');
             
         } catch (error) {
-            console.error('Ошибка скачивания:', error);
-            alert('Ошибка скачивания файла');
+            console.error('❌ ОШИБКА В downloadFile:', error);
+            console.error('❌ Тип ошибки:', error.name);
+            console.error('❌ Сообщение:', error.message);
+            console.error('❌ Стек:', error.stack);
+            alert(`Ошибка скачивания: ${error.message}`);
         }
+        console.log('=== КОНЕЦ СКАЧИВАНИЯ ===\n');
     };
     return (
         <div>
