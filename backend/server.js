@@ -51,6 +51,25 @@ app.get('/api/debug-users', async (req, res) => {
     }
 });
 
+app.use((err, req, res, next) => {
+    console.error('🔥 GLOBAL ERROR:', err);
+    console.error('Stack:', err.stack);
+    res.status(500).json({ 
+        error: 'Внутренняя ошибка сервера', 
+        details: err.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : err.stack 
+    });
+});
+
+// Обработка необработанных промисов
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('💥 Uncaught Exception:', error);
+});
+
 // Запуск сервера
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
