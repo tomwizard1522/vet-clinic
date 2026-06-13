@@ -15,5 +15,10 @@ const pool = new Pool({
     ssl: process.env.DB_SSL ? { rejectUnauthorized: false } : false
 });
 
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
+});
+
 // Экспорт пула для использования в других файлах
 module.exports = pool;
