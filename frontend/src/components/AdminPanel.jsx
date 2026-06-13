@@ -1,9 +1,3 @@
-// Панель администратора
-// просмотр статистики (количество пользователей, питомцев, записей)
-// управление пользователями (просмотр, удаление)
-// просмотр всех питомцев (с переходом в карточку)
-// просмотр всех записей
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -26,23 +20,32 @@ const AdminPanel = () => {
     const fetchAllData = async () => {
         try {
             const [usersRes, petsRes, appointmentsRes] = await Promise.all([
-                axios.get('${API_URL}/api/users'),
-                axios.get('${API_URL}/api/pets'),
-                axios.get('${API_URL}/api/appointments')
+                axios.get(`${API_URL}/api/users`),
+                axios.get(`${API_URL}/api/pets`),
+                axios.get(`${API_URL}/api/appointments`)
             ]);
-            setUsers(usersRes.data);
-            setPets(petsRes.data);
-            setAppointments(appointmentsRes.data);
+            
+            // Гарантируем, что данные — всегда массивы
+            const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
+            const petsData = Array.isArray(petsRes.data) ? petsRes.data : [];
+            const appointmentsData = Array.isArray(appointmentsRes.data) ? appointmentsRes.data : [];
+            
+            setUsers(usersData);
+            setPets(petsData);
+            setAppointments(appointmentsData);
             
             setStats({
-                totalUsers: usersRes.data.length,
-                totalPets: petsRes.data.length,
-                totalAppointments: appointmentsRes.data.length,
-                completedAppointments: appointmentsRes.data.filter(a => a.status === 'completed').length,
-                scheduledAppointments: appointmentsRes.data.filter(a => a.status === 'scheduled').length
+                totalUsers: usersData.length,
+                totalPets: petsData.length,
+                totalAppointments: appointmentsData.length,
+                completedAppointments: appointmentsData.filter(a => a && a.status === 'completed').length,
+                scheduledAppointments: appointmentsData.filter(a => a && a.status === 'scheduled').length
             });
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
+            setUsers([]);
+            setPets([]);
+            setAppointments([]);
         } finally {
             setLoading(false);
         }
@@ -60,42 +63,50 @@ const AdminPanel = () => {
         }
     };
 
-    if (loading) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
+    if (loading) {
+        return <div className="loading">Загрузка...</div>;
+    }
 
     return (
         <div>
             <h1 style={{ marginBottom: '20px' }}>⚙️ Панель администратора</h1>
             <p style={{ marginBottom: '20px', color: '#666' }}>Добро пожаловать, {user?.full_name}</p>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
-                <div style={{ background: '#3498db', color: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalUsers}</div>
-                    <div>Пользователей</div>
-                </div>
-                <div style={{ background: '#27ae60', color: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalPets}</div>
-                    <div>Питомцев</div>
-                </div>
-                <div style={{ background: '#f39c12', color: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalAppointments}</div>
-                    <div>Записей</div>
-                </div>
-                <div style={{ background: '#9b59b6', color: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.completedAppointments}</div>
-                    <div>Завершённых приёмов</div>
-                </div>
+            {/* Карточки статистики */}
+            <div className="stats-grid">
+                <div className="stat-card">👥 Пользователей: {stats.totalUsers || 0}</div>
+                <div className="stat-card">🐾 Питомцев: {stats.totalPets || 0}</div>
+                <div className="stat-card">📅 Записей: {stats.totalAppointments || 0}</div>
+                <div className="stat-card">✅ Завершённых приёмов: {stats.completedAppointments || 0}</div>
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
-                <button onClick={() => setActiveTab('users')} style={{ padding: '10px 20px', background: activeTab === 'users' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'users' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>👥 Пользователи</button>
-                <button onClick={() => setActiveTab('pets')} style={{ padding: '10px 20px', background: activeTab === 'pets' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'pets' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🐾 Питомцы</button>
-                <button onClick={() => setActiveTab('appointments')} style={{ padding: '10px 20px', background: activeTab === 'appointments' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'appointments' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📅 Записи</button>
+            {/* Вкладки */}
+            <div className="admin-tabs">
+                <button 
+                    className={activeTab === 'users' ? 'active' : ''} 
+                    onClick={() => setActiveTab('users')}
+                >
+                    👥 Пользователи
+                </button>
+                <button 
+                    className={activeTab === 'pets' ? 'active' : ''} 
+                    onClick={() => setActiveTab('pets')}
+                >
+                    🐾 Питомцы
+                </button>
+                <button 
+                    className={activeTab === 'appointments' ? 'active' : ''} 
+                    onClick={() => setActiveTab('appointments')}
+                >
+                    📅 Записи
+                </button>
             </div>
             
+            {/* Таблица пользователей */}
             {activeTab === 'users' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead style={{ background: '#2c3e50', color: 'white' }}>
+                    <table className="admin-table">
+                        <thead>
                             <tr>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>ФИО</th>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>Email</th>
@@ -105,37 +116,49 @@ const AdminPanel = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map(u => (
-                                <tr key={u.id} style={{ borderBottom: '1px solid #ddd' }}>
-                                    <td style={{ padding: '12px' }}>{u.full_name}</td>
-                                    <td style={{ padding: '12px' }}>{u.email}</td>
-                                    <td style={{ padding: '12px' }}>{u.phone || '—'}</td>
-                                    <td style={{ padding: '12px' }}>
-                                        <span style={{ 
-                                            padding: '4px 8px', 
-                                            borderRadius: '5px', 
-                                            fontSize: '12px',
-                                            background: u.role === 'admin' ? '#e74c3c' : u.role === 'doctor' ? '#3498db' : '#27ae60',
-                                            color: 'white'
-                                        }}>
-                                            {u.role === 'admin' ? 'Админ' : u.role === 'doctor' ? 'Врач' : 'Владелец'}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '12px' }}>
-                                        <button onClick={() => deleteUser(u.id)} style={{ background: '#e74c3c', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Удалить</button>
-                                    </td>
+                            {users.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" style={{ padding: '30px', textAlign: 'center' }}>Нет пользователей</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                users.filter(u => u && u.id).map(u => (
+                                    <tr key={u.id} style={{ borderBottom: '1px solid #ddd' }}>
+                                        <td style={{ padding: '12px' }}>{u.full_name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{u.email || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{u.phone || '—'}</td>
+                                        <td style={{ padding: '12px' }}>
+                                            <span style={{ 
+                                                padding: '4px 8px', 
+                                                borderRadius: '5px', 
+                                                fontSize: '12px',
+                                                background: u.role === 'admin' ? '#e74c3c' : u.role === 'doctor' ? '#3498db' : '#27ae60',
+                                                color: 'white'
+                                            }}>
+                                                {u.role === 'admin' ? 'Админ' : u.role === 'doctor' ? 'Врач' : 'Владелец'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '12px' }}>
+                                            <button 
+                                                className="btn-danger" 
+                                                onClick={() => deleteUser(u.id)}
+                                                style={{ padding: '5px 10px' }}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
             )}
             
-            {/* Исправленная таблица питомцев */}
+            {/* Таблица питомцев */}
             {activeTab === 'pets' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead style={{ background: '#2c3e50', color: 'white' }}>
+                    <table className="admin-table">
+                        <thead>
                             <tr>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>Кличка</th>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>Вид</th>
@@ -145,28 +168,35 @@ const AdminPanel = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {pets.map(p => (
-                                <tr key={p.id} style={{ borderBottom: '1px solid #ddd' }}>
-                                    <td style={{ padding: '12px' }}>{p.name}</td>
-                                    <td style={{ padding: '12px' }}>{p.species}</td>
-                                    <td style={{ padding: '12px' }}>{p.breed || '—'}</td>
-                                    <td style={{ padding: '12px' }}>{p.owner_name}</td>
-                                    <td style={{ padding: '12px' }}>
-                                        <Link to={`/pet/${p.id}`}>
-                                            <button style={{ background: '#3498db', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Просмотр</button>
-                                        </Link>
-                                    </td>
+                            {pets.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" style={{ padding: '30px', textAlign: 'center' }}>Нет питомцев</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                pets.filter(p => p && p.id).map(p => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #ddd' }}>
+                                        <td style={{ padding: '12px' }}>{p.name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{p.species || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{p.breed || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{p.owner_name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>
+                                            <Link to={`/pet/${p.id}`}>
+                                                <button className="btn-info" style={{ padding: '5px 10px' }}>Просмотр</button>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
             )}
             
+            {/* Таблица записей */}
             {activeTab === 'appointments' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead style={{ background: '#2c3e50', color: 'white' }}>
+                    <table className="admin-table">
+                        <thead>
                             <tr>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>Дата и время</th>
                                 <th style={{ padding: '12px', textAlign: 'left' }}>Питомец</th>
@@ -176,25 +206,31 @@ const AdminPanel = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {appointments.map(a => (
-                                <tr key={a.id} style={{ borderBottom: '1px solid #ddd' }}>
-                                    <td style={{ padding: '12px' }}>{new Date(a.appointment_time).toLocaleString()}</td>
-                                    <td style={{ padding: '12px' }}>{a.pet_name}</td>
-                                    <td style={{ padding: '12px' }}>{a.owner_name}</td>
-                                    <td style={{ padding: '12px' }}>{a.doctor_name}</td>
-                                    <td style={{ padding: '12px' }}>
-                                        <span style={{ 
-                                            padding: '4px 8px', 
-                                            borderRadius: '5px', 
-                                            fontSize: '12px',
-                                            background: a.status === 'scheduled' ? '#f39c12' : a.status === 'completed' ? '#27ae60' : '#e74c3c',
-                                            color: 'white'
-                                        }}>
-                                            {a.status === 'scheduled' ? 'Запланирован' : a.status === 'completed' ? 'Завершён' : 'Отменён'}
-                                        </span>
-                                    </td>
+                            {appointments.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" style={{ padding: '30px', textAlign: 'center' }}>Нет записей</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                appointments.filter(a => a && a.id).map(a => (
+                                    <tr key={a.id} style={{ borderBottom: '1px solid #ddd' }}>
+                                        <td style={{ padding: '12px' }}>{a.appointment_time ? new Date(a.appointment_time).toLocaleString() : '—'}</td>
+                                        <td style={{ padding: '12px' }}>{a.pet_name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{a.owner_name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>{a.doctor_name || '—'}</td>
+                                        <td style={{ padding: '12px' }}>
+                                            <span style={{ 
+                                                padding: '4px 8px', 
+                                                borderRadius: '5px', 
+                                                fontSize: '12px',
+                                                background: a.status === 'scheduled' ? '#f39c12' : a.status === 'completed' ? '#27ae60' : '#e74c3c',
+                                                color: 'white'
+                                            }}>
+                                                {a.status === 'scheduled' ? 'Запланирован' : a.status === 'completed' ? 'Завершён' : 'Отменён'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
