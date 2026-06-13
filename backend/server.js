@@ -18,7 +18,8 @@ const fileRoutes = require('./routes/files');
 const app = express(); // Экземпляр приложения Express
 
 // Настройка Middleware
-app.use(cors()); // Разрешение CORS для всех доменов
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json()); // Автоматический парсинг JSON из тела запроса
 
 // Раздача файлов из папки uploads
