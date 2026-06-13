@@ -65,8 +65,9 @@ button:hover, .btn:hover {
     padding: 12px 24px;
     background: #2c3e50;
     color: white;
-    flex-wrap: wrap;
-    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 15px;
 }
 
 .nav-brand {
@@ -76,13 +77,26 @@ button:hover, .btn:hover {
     flex-wrap: wrap;
 }
 
+.nav-brand strong {
+    font-size: 18px;
+    white-space: nowrap;
+}
+
 .nav-brand a {
     color: white;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .nav-brand a:hover {
     text-decoration: underline;
+}
+
+.navbar > div:last-child {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
 }
 
 .logout-btn {
@@ -91,8 +105,69 @@ button:hover, .btn:hover {
     border: none;
     padding: 6px 12px;
     border-radius: 5px;
-    margin-left: 15px;
     cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Адаптивная навигация для телефонов */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .nav-brand {
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .nav-brand strong {
+        font-size: 16px;
+    }
+    
+    .nav-brand a {
+        font-size: 14px;
+    }
+    
+    .navbar > div:last-child {
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .logout-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    .navbar {
+        padding: 10px;
+    }
+    
+    .nav-brand {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .nav-brand strong {
+        font-size: 16px;
+    }
+    
+    .nav-brand a {
+        font-size: 13px;
+    }
+    
+    .navbar > div:last-child {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .logout-btn {
+        margin-left: 0;
+    }
 }
 
 /* Адаптивная навигация для телефонов */

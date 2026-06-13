@@ -4,19 +4,22 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import API_URL from '../config';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-    
+
     if (!user) return null;
-    
+
+    const getRoleName = () => {
+        switch (user.role) {
+            case 'owner': return 'Владелец';
+            case 'doctor': return 'Врач';
+            case 'admin': return 'Администратор';
+            default: return user.role;
+        }
+    };
+
     const getMenuItems = () => {
         switch (user.role) {
             case 'owner':
@@ -29,16 +32,16 @@ const Navbar = () => {
                 return null;
         }
     };
-    
+
     return (
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', background: '#2c3e50', color: 'white' }}>
-            <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-                <strong style={{ fontSize: '18px' }}>🐾 ВетКлиника</strong>
+        <nav className="navbar">
+            <div className="nav-brand">
+                <strong>🐾 ВетКлиника</strong>
                 {getMenuItems()}
             </div>
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                <span>👤 {user.full_name} ({user.role === 'owner' ? 'Владелец' : user.role === 'doctor' ? 'Врач' : 'Администратор'})</span>
-                <button onClick={handleLogout} style={{ background: '#e74c3c', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer' }}>
+            <div>
+                <span>👤 {user.full_name} ({getRoleName()})</span>
+                <button className="logout-btn" onClick={() => { logout(); navigate('/login'); }}>
                     Выйти
                 </button>
             </div>
