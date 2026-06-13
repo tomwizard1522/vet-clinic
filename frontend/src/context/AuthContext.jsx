@@ -8,8 +8,6 @@ import axios from 'axios';
 import API_URL from './config';
 
 const AuthContext = createContext();
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-console.log('🔧 API_URL:', API_URL);
 
 export const useAuth = () => useContext(AuthContext);
 
