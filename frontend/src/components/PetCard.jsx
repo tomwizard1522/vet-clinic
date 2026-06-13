@@ -89,7 +89,38 @@ const PetCard = () => {
 
     if (loading) return <div className="loading">Загрузка...</div>;
     if (!pet) return <div>Питомец не найден</div>;
-
+    
+    const downloadFile = async (fileId, fileName) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/files/download/${fileId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Ошибка скачивания');
+            }
+            
+            // Получаем blob (бинарные данные файла)
+            const blob = await response.blob();
+            
+            // Создаём ссылку для скачивания
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error('Ошибка скачивания:', error);
+            alert('Ошибка скачивания файла');
+        }
+    };
     return (
         <div>
             <button className="btn-secondary" onClick={() => navigate(-1)}>← Назад</button>
