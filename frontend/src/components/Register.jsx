@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import API_URL from './config';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ const Register = () => {
     const [loading, setLoading] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
+    
     
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

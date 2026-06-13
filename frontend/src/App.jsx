@@ -16,6 +16,7 @@ import DoctorSchedule from './components/DoctorSchedule';
 import AdminPanel from './components/AdminPanel';
 import PetCard from './components/PetCard';
 import Navbar from './components/Navbar';
+import API_URL from './config';
 
 // Компонент для защиты приватных маршрутов
 const PrivateRoute = ({ children, allowedRoles }) => {
