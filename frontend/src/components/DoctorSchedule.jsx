@@ -1,7 +1,3 @@
-// Расписание приёмов для врача
-// Отображает записи на сегодня и предстоящие записи
-// Позволяет врачу завершить приём и заполнить медицинскую карту
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -12,11 +8,7 @@ const DoctorSchedule = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
-    const [formData, setFormData] = useState({
-        diagnosis: '',
-        treatment: '',
-        recommendations: ''
-    });
+    const [formData, setFormData] = useState({ diagnosis: '', treatment: '', recommendations: '' });
     const [submitting, setSubmitting] = useState(false);
     const { user } = useAuth();
 
@@ -26,10 +18,13 @@ const DoctorSchedule = () => {
 
     const fetchAppointments = async () => {
         try {
-            const response = await axios.get('${API_URL}/api/appointments');
-            setAppointments(response.data);
+            const response = await axios.get(`${API_URL}/api/appointments`);
+            console.log('📅 Записи для врача:', response.data);
+            // Гарантируем, что appointments всегда массив
+            setAppointments(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Ошибка загрузки расписания:', error);
+            setAppointments([]);
         } finally {
             setLoading(false);
         }
@@ -44,7 +39,6 @@ const DoctorSchedule = () => {
     const closeModal = () => {
         setShowModal(false);
         setSelectedAppointment(null);
-        setFormData({ diagnosis: '', treatment: '', recommendations: '' });
     };
 
     const handleSubmit = async (e) => {
@@ -55,11 +49,12 @@ const DoctorSchedule = () => {
         }
         
         setSubmitting(true);
-        
         try {
+            // 1. Обновляем статус записи
             await axios.patch(`${API_URL}/api/appointments/${selectedAppointment.id}/status`, { status: 'completed' });
             
-            await axios.post('${API_URL}/api/medical-records', {
+            // 2. Создаём медицинскую запись
+            await axios.post(`${API_URL}/api/medical-records`, {
                 pet_id: selectedAppointment.pet_id,
                 appointment_id: selectedAppointment.id,
                 visit_date: new Date().toISOString().split('T')[0],
@@ -70,7 +65,7 @@ const DoctorSchedule = () => {
             
             alert('Приём успешно завершён! Медицинская карта заполнена.');
             closeModal();
-            fetchAppointments();
+            fetchAppointments(); // Обновляем список
         } catch (error) {
             console.error('Ошибка:', error);
             alert('Ошибка при завершении приёма: ' + (error.response?.data?.error || 'Неизвестная ошибка'));
@@ -79,11 +74,14 @@ const DoctorSchedule = () => {
         }
     };
 
-    if (loading) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Загрузка...</div>;
+    if (loading) {
+        return <div className="loading">Загрузка...</div>;
+    }
 
+    // Безопасная проверка наличия записей
     const today = new Date().toDateString();
-    const todayAppointments = appointments.filter(a => new Date(a.appointment_time).toDateString() === today);
-    const upcomingAppointments = appointments.filter(a => new Date(a.appointment_time) > new Date() && new Date(a.appointment_time).toDateString() !== today);
+    const todayAppointments = appointments.filter(a => a && new Date(a.appointment_time).toDateString() === today);
+    const upcomingAppointments = appointments.filter(a => a && new Date(a.appointment_time) > new Date() && new Date(a.appointment_time).toDateString() !== today);
 
     return (
         <div>
@@ -186,7 +184,8 @@ const DoctorSchedule = () => {
                 </table>
             </div>
 
-            {showModal && (
+            {/* Модальное окно */}
+            {showModal && selectedAppointment && (
                 <div style={{
                     position: 'fixed',
                     top: 0,
@@ -209,8 +208,8 @@ const DoctorSchedule = () => {
                     }}>
                         <h2 style={{ marginBottom: '15px', color: '#2c3e50' }}>📝 Заполнение медицинской карты</h2>
                         <p style={{ marginBottom: '15px', color: '#666' }}>
-                            Питомец: <strong>{selectedAppointment?.pet_name}</strong><br/>
-                            Владелец: <strong>{selectedAppointment?.owner_name}</strong>
+                            Питомец: <strong>{selectedAppointment.pet_name}</strong><br/>
+                            Владелец: <strong>{selectedAppointment.owner_name}</strong>
                         </p>
                         
                         <form onSubmit={handleSubmit}>
