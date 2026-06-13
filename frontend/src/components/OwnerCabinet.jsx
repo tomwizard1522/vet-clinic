@@ -23,6 +23,10 @@ const OwnerCabinet = () => {
         fetchData();
     }, []);
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+    }
     const fetchData = async () => {
         setLoading(true);
         try {
