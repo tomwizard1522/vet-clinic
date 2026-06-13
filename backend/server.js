@@ -40,6 +40,16 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера.' });
 });
 
+app.get('/api/debug-users', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, email, role FROM users LIMIT 5');
+        res.json({ success: true, users: result.rows });
+    } catch (error) {
+        console.error('Debug error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Запуск сервера
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
