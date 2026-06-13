@@ -175,9 +175,15 @@ const PetCard = () => {
                 ) : (
                     <ul style={{ listStyle: 'none', marginTop: '15px' }}>
                         {files.map(file => (
-                            <li key={file.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+                            <li key={file.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span>📄 {file.file_name}</span>
-                                <a href={`${API_URL}/api/files/download/${file.id}`} download style={{ color: '#3498db' }}>Скачать</a>
+                                <button 
+                                    className="btn-info" 
+                                    onClick={() => downloadFile(file.id, file.file_name)}
+                                    style={{ padding: '4px 12px' }}
+                                >
+                                    Скачать
+                                </button>
                             </li>
                         ))}
                     </ul>
