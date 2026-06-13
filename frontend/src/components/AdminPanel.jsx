@@ -25,9 +25,9 @@ const AdminPanel = () => {
     const fetchAllData = async () => {
         try {
             const [usersRes, petsRes, appointmentsRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/users'),
-                axios.get('http://localhost:5000/api/pets'),
-                axios.get('http://localhost:5000/api/appointments')
+                axios.get('${API_URL}/api/users'),
+                axios.get('${API_URL}/api/pets'),
+                axios.get('${API_URL}/api/appointments')
             ]);
             setUsers(usersRes.data);
             setPets(petsRes.data);
@@ -50,7 +50,7 @@ const AdminPanel = () => {
     const deleteUser = async (userId) => {
         if (window.confirm('Вы уверены, что хотите удалить пользователя?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/users/${userId}`);
+                await axios.delete(`${API_URL}/api/users/${userId}`);
                 fetchAllData();
             } catch (error) {
                 console.error('Ошибка удаления пользователя:', error);

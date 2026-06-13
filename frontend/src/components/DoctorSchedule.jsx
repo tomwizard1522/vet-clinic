@@ -25,7 +25,7 @@ const DoctorSchedule = () => {
 
     const fetchAppointments = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/appointments');
+            const response = await axios.get('${API_URL}/api/appointments');
             setAppointments(response.data);
         } catch (error) {
             console.error('Ошибка загрузки расписания:', error);
@@ -56,9 +56,9 @@ const DoctorSchedule = () => {
         setSubmitting(true);
         
         try {
-            await axios.patch(`http://localhost:5000/api/appointments/${selectedAppointment.id}/status`, { status: 'completed' });
+            await axios.patch(`${API_URL}/api/appointments/${selectedAppointment.id}/status`, { status: 'completed' });
             
-            await axios.post('http://localhost:5000/api/medical-records', {
+            await axios.post('${API_URL}/api/medical-records', {
                 pet_id: selectedAppointment.pet_id,
                 appointment_id: selectedAppointment.id,
                 visit_date: new Date().toISOString().split('T')[0],

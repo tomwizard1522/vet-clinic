@@ -35,9 +35,9 @@ const PetCard = () => {
     const fetchPetData = async () => {
         try {
             const [petRes, recordsRes, filesRes] = await Promise.all([
-                axios.get(`http://localhost:5000/api/pets/${id}`),
-                axios.get(`http://localhost:5000/api/medical-records/pet/${id}`),
-                axios.get(`http://localhost:5000/api/files/pet/${id}`)
+                axios.get(`${API_URL}/api/pets/${id}`),
+                axios.get(`${API_URL}/api/medical-records/pet/${id}`),
+                axios.get(`${API_URL}/api/files/pet/${id}`)
             ]);
             setPet(petRes.data);
             setMedicalRecords(recordsRes.data);
@@ -52,7 +52,7 @@ const PetCard = () => {
 
     const fetchDoctors = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/doctors');
+            const response = await axios.get('${API_URL}/api/doctors');
             setDoctors(response.data);
         } catch (error) {
             console.error('Ошибка загрузки врачей:', error);
@@ -68,7 +68,7 @@ const PetCard = () => {
         
         setUploading(true);
         try {
-            await axios.post(`http://localhost:5000/api/files/upload/${id}`, formData, {
+            await axios.post(`${API_URL}/api/files/upload/${id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             fetchPetData();
@@ -83,7 +83,7 @@ const PetCard = () => {
     const handleCreateAppointment = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/appointments', {
+            await axios.post('${API_URL}/api/appointments', {
                 pet_id: id,
                 ...newAppointment
             });
@@ -225,7 +225,7 @@ const PetCard = () => {
                         {files.map(file => (
                             <li key={file.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span>📄 {file.file_name}</span>
-                                <a href={`http://localhost:5000/api/files/download/${file.id}`} download style={{ color: '#3498db', textDecoration: 'none' }}>Скачать</a>
+                                <a href={`${API_URL}/api/files/download/${file.id}`} download style={{ color: '#3498db', textDecoration: 'none' }}>Скачать</a>
                             </li>
                         ))}
                     </ul>

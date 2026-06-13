@@ -33,8 +33,8 @@ const OwnerCabinet = () => {
     const fetchData = async () => {
         try {
             const [petsRes, appointmentsRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/pets'),
-                axios.get('http://localhost:5000/api/appointments')
+                axios.get('${API_URL}/api/pets'),
+                axios.get('${API_URL}/api/appointments')
             ]);
             setPets(petsRes.data);
             setAppointments(appointmentsRes.data);
@@ -48,7 +48,7 @@ const OwnerCabinet = () => {
     const handleAddPet = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:5000/api/pets', newPet);
+            const response = await axios.post('${API_URL}/api/pets', newPet);
             setPets([...pets, response.data]);
             setShowAddForm(false);
             setNewPet({ name: '', species: '', breed: '', birth_date: '', gender: 'male', weight: '' });
@@ -61,7 +61,7 @@ const OwnerCabinet = () => {
     const handleDeletePet = async (petId) => {
         if (window.confirm('Вы уверены, что хотите удалить питомца?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/pets/${petId}`);
+                await axios.delete(`${API_URL}/api/pets/${petId}`);
                 setPets(pets.filter(p => p.id !== petId));
             } catch (error) {
                 console.error('Ошибка удаления питомца:', error);
