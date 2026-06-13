@@ -1,7 +1,6 @@
 const express = require('express');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
-const ws = require('ws');  // Добавляем поддержку WebSocket
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
@@ -16,22 +15,17 @@ console.log('🔧 Проверка Supabase переменных:');
 console.log('SUPABASE_URL:', supabaseUrl ? '✅ установлен' : '❌ ОТСУТСТВУЕТ');
 console.log('SUPABASE_SERVICE_KEY:', supabaseKey ? '✅ установлен' : '❌ ОТСУТСТВУЕТ');
 
-// Инициализация Supabase клиента с поддержкой WebSocket
+// Инициализация Supabase клиента БЕЗ realtime
 const supabase = supabaseUrl && supabaseKey 
     ? createClient(supabaseUrl, supabaseKey, {
-        // Решение для ошибки WebSocket
-        realtime: {
-            webSocketImpl: ws
-        },
-        // Дополнительные опции для стабильности
-        auth: {
-            persistSession: false
-        }
+        // Отключаем realtime (WebSocket не нужен для Storage)
+        realtime: { enabled: false },
+        auth: { persistSession: false }
       })
     : null;
 
 if (supabase) {
-    console.log('✅ Supabase клиент успешно инициализирован');
+    console.log('✅ Supabase клиент успешно инициализирован (realtime отключён)');
 } else {
     console.error('❌ Supabase клиент НЕ инициализирован');
 }
@@ -55,26 +49,27 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${petId}/${fileName}`;
         
-        console.log('📤 Загрузка файла в Supabase:', filePath);
+        console.log('📤 Загрузка файла в Supabase Storage:', filePath);
         
         // Загружаем в Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
             .from('vet-files')
             .upload(filePath, file.buffer, {
                 contentType: file.mimetype,
-                cacheControl: '3600'
+                cacheControl: '3600',
+                upsert: false
             });
         
         if (uploadError) {
-            console.error('Ошибка загрузки в Supabase:', uploadError);
+            console.error('❌ Ошибка загрузки в Supabase:', uploadError);
             return res.status(500).json({ error: 'Ошибка загрузки файла: ' + uploadError.message });
         }
         
-        // Сохраняем информацию в БД
+        // Сохраняем информацию в PostgreSQL
         const result = await pool.query(
             `INSERT INTO files (pet_id, file_name, file_path, file_type, file_size, uploaded_by) 
              VALUES ($1, $2, $3, $4, $5, $6) 
-             RETURNING *`,
+             RETURNING id, file_name, file_path`,
             [petId, file.originalname, filePath, file.mimetype, file.size, req.user.id]
         );
         
@@ -86,8 +81,8 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
         });
         
     } catch (error) {
-        console.error('Ошибка загрузки:', error);
-        res.status(500).json({ error: error.message });
+        console.error('❌ Ошибка загрузки:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
@@ -100,14 +95,14 @@ router.get('/download/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Находим файл в БД
+        // Находим файл в PostgreSQL
         const result = await pool.query(
             'SELECT file_path, file_name FROM files WHERE id = $1',
             [id]
         );
         
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Файл не найден' });
+            return res.status(404).json({ error: 'Файл не найден в базе данных' });
         }
         
         const { file_path, file_name } = result.rows[0];
@@ -120,20 +115,24 @@ router.get('/download/:id', authenticate, async (req, res) => {
             .download(file_path);
         
         if (error) {
-            console.error('Ошибка скачивания из Supabase:', error);
+            console.error('❌ Ошибка скачивания из Supabase:', error);
             return res.status(500).json({ error: 'Ошибка доступа к файлу: ' + error.message });
         }
         
-        // Отправляем файл напрямую
+        if (!data) {
+            return res.status(404).json({ error: 'Файл не найден в хранилище' });
+        }
+        
+        // Отправляем файл
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file_name)}"`);
-        res.setHeader('Content-Type', data.type);
+        res.setHeader('Content-Type', data.type || 'application/octet-stream');
         res.send(Buffer.from(await data.arrayBuffer()));
         
-        console.log('✅ Файл отправлен клиенту');
+        console.log('✅ Файл отправлен клиенту, размер:', data.size);
         
     } catch (error) {
-        console.error('Ошибка скачивания:', error);
-        res.status(500).json({ error: error.message });
+        console.error('❌ Ошибка скачивания:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
