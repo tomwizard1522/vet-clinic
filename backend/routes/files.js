@@ -1,20 +1,47 @@
 const express = require('express');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');  // Добавляем поддержку WebSocket
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() }); // Храним в памяти
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Инициализация Supabase клиента
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
+// Проверка переменных окружения
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-// Загрузка файла в Supabase Storage
+console.log('🔧 Проверка Supabase переменных:');
+console.log('SUPABASE_URL:', supabaseUrl ? '✅ установлен' : '❌ ОТСУТСТВУЕТ');
+console.log('SUPABASE_SERVICE_KEY:', supabaseKey ? '✅ установлен' : '❌ ОТСУТСТВУЕТ');
+
+// Инициализация Supabase клиента с поддержкой WebSocket
+const supabase = supabaseUrl && supabaseKey 
+    ? createClient(supabaseUrl, supabaseKey, {
+        // Решение для ошибки WebSocket
+        realtime: {
+            webSocketImpl: ws
+        },
+        // Дополнительные опции для стабильности
+        auth: {
+            persistSession: false
+        }
+      })
+    : null;
+
+if (supabase) {
+    console.log('✅ Supabase клиент успешно инициализирован');
+} else {
+    console.error('❌ Supabase клиент НЕ инициализирован');
+}
+
+// Загрузка файла
 router.post('/upload/:petId', authenticate, upload.single('file'), async (req, res) => {
+    if (!supabase) {
+        return res.status(500).json({ error: 'Хранилище не настроено. Обратитесь к администратору.' });
+    }
+    
     try {
         const { petId } = req.params;
         const file = req.file;
@@ -28,6 +55,8 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${petId}/${fileName}`;
         
+        console.log('📤 Загрузка файла в Supabase:', filePath);
+        
         // Загружаем в Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from('vet-files')
@@ -38,13 +67,8 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
         
         if (uploadError) {
             console.error('Ошибка загрузки в Supabase:', uploadError);
-            return res.status(500).json({ error: 'Ошибка загрузки файла' });
+            return res.status(500).json({ error: 'Ошибка загрузки файла: ' + uploadError.message });
         }
-        
-        // Получаем публичный URL (или использовать signed URL)
-        const { data: urlData } = supabase.storage
-            .from('vet-files')
-            .getPublicUrl(filePath);
         
         // Сохраняем информацию в БД
         const result = await pool.query(
@@ -54,10 +78,11 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
             [petId, file.originalname, filePath, file.mimetype, file.size, req.user.id]
         );
         
+        console.log('✅ Файл загружен, ID:', result.rows[0].id);
+        
         res.status(201).json({
             message: 'Файл успешно загружен',
-            file: result.rows[0],
-            url: urlData.publicUrl
+            file: result.rows[0]
         });
         
     } catch (error) {
@@ -66,8 +91,12 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
     }
 });
 
-// Скачивание файла из Supabase Storage
+// Скачивание файла
 router.get('/download/:id', authenticate, async (req, res) => {
+    if (!supabase) {
+        return res.status(500).json({ error: 'Хранилище не настроено. Обратитесь к администратору.' });
+    }
+    
     try {
         const { id } = req.params;
         
@@ -83,18 +112,24 @@ router.get('/download/:id', authenticate, async (req, res) => {
         
         const { file_path, file_name } = result.rows[0];
         
-        // Создаём подписанный URL (действует 60 секунд)
+        console.log('📥 Скачивание файла:', file_path);
+        
+        // Скачиваем файл из Supabase Storage
         const { data, error } = await supabase.storage
             .from('vet-files')
-            .createSignedUrl(file_path, 60);
+            .download(file_path);
         
         if (error) {
-            console.error('Ошибка создания подписанного URL:', error);
-            return res.status(500).json({ error: 'Ошибка доступа к файлу' });
+            console.error('Ошибка скачивания из Supabase:', error);
+            return res.status(500).json({ error: 'Ошибка доступа к файлу: ' + error.message });
         }
         
-        // Перенаправляем на подписанный URL
-        res.redirect(data.signedUrl);
+        // Отправляем файл напрямую
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file_name)}"`);
+        res.setHeader('Content-Type', data.type);
+        res.send(Buffer.from(await data.arrayBuffer()));
+        
+        console.log('✅ Файл отправлен клиенту');
         
     } catch (error) {
         console.error('Ошибка скачивания:', error);
@@ -118,6 +153,7 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
         
         res.json(result.rows);
     } catch (error) {
+        console.error('Ошибка получения списка файлов:', error);
         res.status(500).json({ error: 'Ошибка получения списка файлов' });
     }
 });
