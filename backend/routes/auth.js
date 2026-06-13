@@ -40,10 +40,11 @@ router.post('/register', [
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ error: 'Пользователь с таким email уже существует.' });
         }
-        
+        console.log('📝 Регистрация:', { email, password: password ? 'получен' : 'НЕ ПОЛУЧЕН' });
+        console.log('📝 Хеширую пароль...');
         const salt = await bcrypt.genSalt(10); // 10 раундов шифрования
         const password_hash = await bcrypt.hash(password, salt);
-        
+        console.log('✅ Хеш создан:', password_hash.substring(0, 20) + '...');
         // Создание пользователя
         const result = await pool.query(
             `INSERT INTO users (email, password_hash, full_name, phone, role) 
@@ -99,12 +100,13 @@ router.post('/login', [
         if (result.rows.length === 0) {
             return res.status(401).json({ error: 'Неверный email или пароль.' });
         }
-        
+        console.log('🔑 Логин:', { email, password: password ? 'получен' : 'НЕ ПОЛУЧЕН' });
         const user = result.rows[0];
-        
+        console.log('👤 Найден пользователь:', user.email);
+        console.log('🔐 Сравниваю пароль...');
         // Сравнение пароля (bcrypt.compare сам достаёт соль из хэша)
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
-        
+        console.log('✅ Результат сравнения:', isValidPassword);
         if (!isValidPassword) {
             return res.status(401).json({ error: 'Неверный email или пароль.' });
         }
