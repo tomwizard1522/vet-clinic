@@ -76,19 +76,25 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
 // Браузер предложит сохранить файл
 router.get('/download/:id', authenticate, async (req, res) => {
     try {
+        const { id } = req.params;
+        
         const result = await pool.query(
             'SELECT file_path, file_name FROM files WHERE id = $1',
-            [req.params.id]
+            [id]
         );
         
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Файл не найден.' });
+            return res.status(404).json({ error: 'Файл не найден' });
         }
         
         const { file_path, file_name } = result.rows[0];
+        
+        // Отправляем файл
         res.download(file_path, file_name);
+        
     } catch (error) {
-        res.status(500).json({ error: 'Ошибка скачивания файла.' });
+        console.error('Ошибка скачивания:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
