@@ -18,51 +18,57 @@ const router = express.Router();
 // 6) Генерация JWT-токена
 // 7) Возвращение токена и данных пользователя
 
-router.post('/register', async (req, res) => {
-    console.log('🚀 1. Регистрация начата, тело запроса:', req.body);
+router.post('/register', [
+    body('email').isEmail().withMessage('Неверный формат email'),
+    body('password').isLength({ min: 6 }).withMessage('Пароль должен содержать минимум 6 символов'),
+    body('full_name').notEmpty().withMessage('Имя обязательно'),
+    body('role').isIn(['owner', 'doctor', 'admin']).withMessage('Неверная роль')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    
+    const { email, password, full_name, phone, role } = req.body;
     
     try {
-        const { email, password, full_name, phone, role } = req.body;
+        const existingUser = await pool.query(
+            'SELECT id FROM users WHERE email = $1',
+            [email]
+        );
         
-        if (!email || !password || !full_name) {
-            console.log('❌ 2. Отсутствуют обязательные поля');
-            return res.status(400).json({ error: 'Все поля обязательны' });
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({ error: 'Пользователь с таким email уже существует.' });
         }
         
-        console.log('✅ 2. Данные валидны, подключаюсь к БД...');
-        
-        // ПРЯМОЙ SQL-ЗАПРОС без проверки существования
-        const query = `
-            INSERT INTO users (id, email, password_hash, full_name, phone, role) 
-            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
-            RETURNING id, email, full_name, role
-        `;
-        
-        const bcrypt = require('bcryptjs');
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(10); // 10 раундов шифрования
         const password_hash = await bcrypt.hash(password, salt);
         
-        console.log('✅ 3. Хеш пароля создан, выполняю INSERT...');
+        // Создание пользователя
+        const result = await pool.query(
+            `INSERT INTO users (email, password_hash, full_name, phone, role) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING id, email, full_name, role`,
+            [email, password_hash, full_name, phone, role]
+        );
         
-        const result = await pool.query(query, [email, password_hash, full_name, phone, role || 'owner']);
+        if (role === 'doctor') {
+            await pool.query(
+                `INSERT INTO doctors (user_id, specialization, is_active) 
+                 VALUES ($1, $2, $3)`,
+                [result.rows[0].id, 'Терапевт', true]
+            );
+        }
         
-        console.log('✅ 4. Пользователь создан:', result.rows[0]);
-        
-        const jwt = require('jsonwebtoken');
         const token = jwt.sign(
             { id: result.rows[0].id, email: result.rows[0].email, role: result.rows[0].role },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: process.env.JWT_EXPIRE }
         );
         
-        console.log('✅ 5. Токен создан, отправляю ответ');
-        
         res.status(201).json({ token, user: result.rows[0] });
-        
     } catch (error) {
-        console.error('❌ ОШИБКА В РЕГИСТРАЦИИ:', error);
-        console.error('❌ Стек ошибки:', error.stack);
-        res.status(500).json({ error: 'Ошибка сервера', details: error.message });
+        console.error(error);
+        res.status(500).json({ error: 'Ошибка сервера при регистрации.' });
     }
 });
 

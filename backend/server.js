@@ -16,7 +16,21 @@ const medicalRecordRoutes = require('./routes/medicalRecords');
 const fileRoutes = require('./routes/files');
 
 const app = express(); // Экземпляр приложения Express
+// Простой тестовый маршрут (должен быть самым первым)
+app.get('/ping', (req, res) => {
+    res.json({ message: 'pong', timestamp: new Date().toISOString() });
+});
 
+// Тестовый маршрут для проверки CORS
+app.options('/api/test', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.sendStatus(200);
+});
+
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'API работает', success: true });
+});
 // Настройка Middleware
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({ origin: FRONTEND_URL }));
@@ -49,25 +63,6 @@ app.get('/api/debug-users', async (req, res) => {
         console.error('Debug error:', error);
         res.status(500).json({ error: error.message });
     }
-});
-
-app.use((err, req, res, next) => {
-    console.error('🔥 GLOBAL ERROR:', err);
-    console.error('Stack:', err.stack);
-    res.status(500).json({ 
-        error: 'Внутренняя ошибка сервера', 
-        details: err.message,
-        stack: process.env.NODE_ENV === 'production' ? undefined : err.stack 
-    });
-});
-
-// Обработка необработанных промисов
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('💥 Uncaught Exception:', error);
 });
 
 // Запуск сервера
