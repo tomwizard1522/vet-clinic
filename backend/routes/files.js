@@ -1,57 +1,108 @@
-// Маршруты для работы с файлами (анализы, снимки, выписки)
-
 const express = require('express');
+const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
 const pool = require('../config/database');
-const { authenticate, authorize } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() }); // Храним в памяти
 
-// Загрузка файла
-// multer для сохранения файла на диск
-// После сохранения - запись информации в БД
+// Инициализация Supabase клиента
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+);
+
+// Загрузка файла в Supabase Storage
 router.post('/upload/:petId', authenticate, upload.single('file'), async (req, res) => {
     try {
         const { petId } = req.params;
-        const { medical_record_id } = req.body;
+        const file = req.file;
         
-        if (!req.file) {
-            return res.status(400).json({ error: 'Файл не загружен.' });
+        if (!file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
         }
         
-        // Пользователь должен иметь доступ к питомцу
-        const petCheck = await pool.query(
-            'SELECT owner_id FROM pets WHERE id = $1',
-            [petId]
-        );
+        // Генерируем уникальное имя файла
+        const fileExt = file.originalname.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${petId}/${fileName}`;
         
-        if (petCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Питомец не найден.' });
+        // Загружаем в Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('vet-files')
+            .upload(filePath, file.buffer, {
+                contentType: file.mimetype,
+                cacheControl: '3600'
+            });
+        
+        if (uploadError) {
+            console.error('Ошибка загрузки в Supabase:', uploadError);
+            return res.status(500).json({ error: 'Ошибка загрузки файла' });
         }
         
-        if (req.user.role !== 'admin' && req.user.role !== 'doctor' && petCheck.rows[0].owner_id !== req.user.id) {
-            return res.status(403).json({ error: 'Нет прав на загрузку файлов для этого питомца.' });
-        }
+        // Получаем публичный URL (или использовать signed URL)
+        const { data: urlData } = supabase.storage
+            .from('vet-files')
+            .getPublicUrl(filePath);
         
-        // Сохранение информации о файле в БД
+        // Сохраняем информацию в БД
         const result = await pool.query(
-            `INSERT INTO files (pet_id, medical_record_id, file_name, file_path, file_type, file_size, uploaded_by) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+            `INSERT INTO files (pet_id, file_name, file_path, file_type, file_size, uploaded_by) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING *`,
-            [petId, medical_record_id || null, req.file.originalname, req.file.path, req.file.mimetype, req.file.size, req.user.id]
+            [petId, file.originalname, filePath, file.mimetype, file.size, req.user.id]
         );
         
         res.status(201).json({
-            message: 'Файл успешно загружен.',
-            file: result.rows[0]
+            message: 'Файл успешно загружен',
+            file: result.rows[0],
+            url: urlData.publicUrl
         });
+        
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Ошибка загрузки файла.' });
+        console.error('Ошибка загрузки:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Получение списка файлов питомца
+// Скачивание файла из Supabase Storage
+router.get('/download/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Находим файл в БД
+        const result = await pool.query(
+            'SELECT file_path, file_name FROM files WHERE id = $1',
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Файл не найден' });
+        }
+        
+        const { file_path, file_name } = result.rows[0];
+        
+        // Создаём подписанный URL (действует 60 секунд)
+        const { data, error } = await supabase.storage
+            .from('vet-files')
+            .createSignedUrl(file_path, 60);
+        
+        if (error) {
+            console.error('Ошибка создания подписанного URL:', error);
+            return res.status(500).json({ error: 'Ошибка доступа к файлу' });
+        }
+        
+        // Перенаправляем на подписанный URL
+        res.redirect(data.signedUrl);
+        
+    } catch (error) {
+        console.error('Ошибка скачивания:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Получить список файлов питомца
 router.get('/pet/:petId', authenticate, async (req, res) => {
     try {
         const { petId } = req.params;
@@ -67,55 +118,7 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
         
         res.json(result.rows);
     } catch (error) {
-        res.status(500).json({ error: 'Ошибка получения списка файлов.' });
-    }
-});
-
-// Скачивание файла
-const fs = require('fs');
-router.get('/download/:id', authenticate, async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        console.log('📥 Запрос на скачивание, ID:', id);
-        
-        // Находим файл в БД
-        const result = await pool.query(
-            'SELECT file_path, file_name FROM files WHERE id = $1',
-            [id]
-        );
-        
-        if (result.rows.length === 0) {
-            console.log('❌ Файл с ID', id, 'не найден в БД');
-            return res.status(404).json({ error: 'Файл не найден' });
-        }
-        
-        const { file_path, file_name } = result.rows[0];
-        console.log('📁 Путь к файлу:', file_path);
-        
-        // Проверяем, существует ли файл на диске
-        if (!fs.existsSync(file_path)) {
-            console.log('❌ Файл не существует на диске:', file_path);
-            return res.status(404).json({ error: 'Файл не найден на сервере' });
-        }
-        
-        console.log('✅ Файл найден, отправка...');
-        res.download(file_path, file_name);
-        
-    } catch (error) {
-        console.error('❌ Ошибка скачивания:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Удаление файла
-// Доступ: только админ
-router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
-    try {
-        await pool.query('DELETE FROM files WHERE id = $1', [req.params.id]);
-        res.json({ message: 'Файл успешно удалён.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Ошибка удаления файла.' });
+        res.status(500).json({ error: 'Ошибка получения списка файлов' });
     }
 });
 
