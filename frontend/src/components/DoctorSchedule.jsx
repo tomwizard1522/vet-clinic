@@ -1,3 +1,7 @@
+// Расписание приёмов для врача
+// Отображает записи на сегодня и предстоящие записи
+// Позволяет врачу завершить приём и заполнить медицинскую карту
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -30,16 +34,6 @@ const DoctorSchedule = () => {
         }
     };
 
-    const updateStatus = async (appointmentId, status) => {
-        try {
-            await axios.patch(`http://localhost:5000/api/appointments/${appointmentId}/status`, { status });
-            fetchAppointments();
-        } catch (error) {
-            console.error('Ошибка обновления статуса:', error);
-            alert('Ошибка обновления статуса');
-        }
-    };
-
     const openModal = (appointment) => {
         setSelectedAppointment(appointment);
         setFormData({ diagnosis: '', treatment: '', recommendations: '' });
@@ -62,10 +56,8 @@ const DoctorSchedule = () => {
         setSubmitting(true);
         
         try {
-            // 1. Обновляем статус записи
             await axios.patch(`http://localhost:5000/api/appointments/${selectedAppointment.id}/status`, { status: 'completed' });
             
-            // 2. Создаём медицинскую запись
             await axios.post('http://localhost:5000/api/medical-records', {
                 pet_id: selectedAppointment.pet_id,
                 appointment_id: selectedAppointment.id,
@@ -193,7 +185,6 @@ const DoctorSchedule = () => {
                 </table>
             </div>
 
-            {/* Модальное окно для заполнения медкарты */}
             {showModal && (
                 <div style={{
                     position: 'fixed',

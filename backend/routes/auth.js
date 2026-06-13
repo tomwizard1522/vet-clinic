@@ -1,13 +1,23 @@
+// Маршруты для аутентификации
+
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // хэширование паролей
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator'); // валидация данных
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Регистрация нового пользователя
+// Регистрация
+// 1) Проверка корректности данных
+// 2) Проверка на совпадение почты с существующими пользователями
+// 3) Хэширование пароля
+// 4) Сохранение пользователя в таблицу users
+// 5) Если это доктор - создание записи в таблице doctors
+// 6) Генерация JWT-токена
+// 7) Возвращение токена и данных пользователя
+
 router.post('/register', [
     body('email').isEmail().withMessage('Неверный формат email'),
     body('password').isLength({ min: 6 }).withMessage('Пароль должен содержать минимум 6 символов'),
@@ -22,7 +32,6 @@ router.post('/register', [
     const { email, password, full_name, phone, role } = req.body;
     
     try {
-        // Проверка существующего пользователя
         const existingUser = await pool.query(
             'SELECT id FROM users WHERE email = $1',
             [email]
@@ -32,8 +41,7 @@ router.post('/register', [
             return res.status(400).json({ error: 'Пользователь с таким email уже существует.' });
         }
         
-        // Хеширование пароля
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(10); // 10 раундов шифрования
         const password_hash = await bcrypt.hash(password, salt);
         
         // Создание пользователя
@@ -43,7 +51,6 @@ router.post('/register', [
             [email, password_hash, full_name, phone, role]
         );
         
-        // Если роль врач, создаём запись в таблице doctors
         if (role === 'doctor') {
             await pool.query(
                 `INSERT INTO doctors (user_id, specialization, is_active) 
@@ -52,24 +59,26 @@ router.post('/register', [
             );
         }
         
-        // Генерация токена
         const token = jwt.sign(
             { id: result.rows[0].id, email: result.rows[0].email, role: result.rows[0].role },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRE }
         );
         
-        res.status(201).json({
-            token,
-            user: result.rows[0]
-        });
+        res.status(201).json({ token, user: result.rows[0] });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Ошибка сервера при регистрации.' });
     }
 });
 
-// Вход в систему
+// Вход
+ 
+// 1) Поиск пользователя по email
+// 2) Сравнение введённого пароля с хэшем из БД
+// 3) Если ок — генерация токена
+// 4) Возвращение токена и данных пользователя
+
 router.post('/login', [
     body('email').isEmail().withMessage('Неверный формат email'),
     body('password').notEmpty().withMessage('Пароль обязателен')
@@ -92,6 +101,8 @@ router.post('/login', [
         }
         
         const user = result.rows[0];
+        
+        // Сравнение пароля (bcrypt.compare сам достаёт соль из хэша)
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
         
         if (!isValidPassword) {
@@ -104,22 +115,17 @@ router.post('/login', [
             { expiresIn: process.env.JWT_EXPIRE }
         );
         
-        res.json({
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                full_name: user.full_name,
-                role: user.role
-            }
-        });
+        res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Ошибка сервера при входе.' });
     }
 });
 
-// Получение информации о текущем пользователе
+// Получение инфо о текущем пользователе
+
+// Используется после логина или при перезагрузке, чтобы восстановить данные по сохранённому токену
+
 router.get('/me', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -132,8 +138,7 @@ router.get('/me', authenticate, async (req, res) => {
         }
         
         const user = result.rows[0];
-        
-        // Если врач, добавляем информацию о специализации
+
         if (user.role === 'doctor') {
             const doctorResult = await pool.query(
                 'SELECT specialization, experience_years, is_active FROM doctors WHERE user_id = $1',

@@ -1,12 +1,17 @@
+// Маршруты для управления пользователями
+// Доступ: только админ (кроме GET /:id для самого себя)
+
 const express = require('express');
 const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Получить всех пользователей (только для админа)
+// Получение всех пользователей
+// Доступ: только админ
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
     try {
+        // Только публичные поля, без password_hash
         const result = await pool.query(
             'SELECT id, email, full_name, phone, role, created_at FROM users ORDER BY created_at DESC'
         );
@@ -16,7 +21,8 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
     }
 });
 
-// Получить пользователя по ID
+// Получение пользователя по ID
+// Доступ: админ или сам пользователь
 router.get('/:id', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -28,7 +34,6 @@ router.get('/:id', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Пользователь не найден.' });
         }
         
-        // Проверка прав: админ или сам пользователь
         if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
             return res.status(403).json({ error: 'Нет доступа к этому пользователю.' });
         }
@@ -39,7 +44,8 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 });
 
-// Обновить пользователя
+// Обновление пользователя
+// Доступ: админ или сам пользователь (админ может менять больше полей)
 router.put('/:id', authenticate, async (req, res) => {
     const { full_name, phone } = req.body;
     
@@ -68,7 +74,8 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 });
 
-// Удалить пользователя (только для админа)
+// Удаление пользователя
+// Доступ: только админ (каскадное удаление всех питомцев и записей)
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
     try {
         await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);

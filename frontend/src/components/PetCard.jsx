@@ -1,3 +1,10 @@
+// Полная карточка питомца
+// основная информация о питомце
+// медицинская карта (история посещений)
+// список загруженных файлов
+// форма записи на приём
+// форма загрузки файлов
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -64,7 +71,7 @@ const PetCard = () => {
             await axios.post(`http://localhost:5000/api/files/upload/${id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            fetchPetData(); // Обновить список файлов
+            fetchPetData();
         } catch (error) {
             console.error('Ошибка загрузки файла:', error);
             alert('Ошибка загрузки файла');

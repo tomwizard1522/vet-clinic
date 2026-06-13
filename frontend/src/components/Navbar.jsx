@@ -1,3 +1,6 @@
+// Компонент навигационной панели
+// Показывает имя пользователя, роль и меню в зависимости от роли
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';

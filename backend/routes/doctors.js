@@ -1,12 +1,16 @@
+// Маршруты для работы с врачами
+
 const express = require('express');
 const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Получить всех врачей
+// Получение всех врачей
+// Доступ: для всех авторизованных пользователей
 router.get('/', authenticate, async (req, res) => {
     try {
+        // Объединение doctors с users, чтобы получить ФИО, email и телефон
         const result = await pool.query(
             `SELECT d.*, u.full_name, u.email, u.phone 
              FROM doctors d 
@@ -20,7 +24,7 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// Получить врача по ID
+// Получение врача по ID
 router.get('/:id', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -41,12 +45,13 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 });
 
-// Обновить информацию о враче (только для админа и самого врача)
+// Обновление данных врача
+// Доступ: админ или сам врач
 router.put('/:id', authenticate, async (req, res) => {
     const { specialization, experience_years, bio, schedule, is_active } = req.body;
     
     try {
-        // Проверка прав
+        // Если не админ, проверка, что врач обновляет свои данные
         if (req.user.role !== 'admin') {
             const doctorCheck = await pool.query(
                 'SELECT user_id FROM doctors WHERE id = $1',

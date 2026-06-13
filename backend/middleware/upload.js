@@ -1,9 +1,15 @@
+// Настройка загрузки файлов с помощью Multer (middleware для обработки multipart/form-data)
+// 1) Создаёт папку uploads/, если её нет
+// 2) Генерирует уникальное имя для каждого файла
+// 3) Проверяет тип файла (только картинки, Word-документы и PDF)
+// 4) Ограничивает размер файла (5 МБ)
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Создание папки для загрузок, если её нет
 const uploadDir = 'uploads/';
+
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -25,14 +31,15 @@ const fileFilter = (req, file, cb) => {
     
     if (mimetype && extname) {
         cb(null, true);
-    } else {
-        cb(new Error('Только изображения и PDF-файлы разрешены.'));
+    } 
+    else {
+        cb(new Error('Разрешены только изображения, Word-документы и PDF-файлы'));
     }
 };
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: fileFilter
 });
 

@@ -1,3 +1,11 @@
+// Личный кабинет владельца питомцев
+
+// просмотр списка питомцев
+// добавление нового питомца
+// удаление питомца
+// просмотр истории записей
+// переход к карточке питомца
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';

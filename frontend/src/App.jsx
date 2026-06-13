@@ -1,3 +1,11 @@
+/**
+ * App.jsx - Главный компонент приложения
+ * 
+ * Отвечает за маршрутизацию (React Router) и защиту страниц
+ * - PrivateRoute: доступ только для авторизованных с определённой ролью
+ * - PublicRoute: для страниц логина/регистрации (редирект если уже залогинен)
+ */
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,64 +17,40 @@ import AdminPanel from './components/AdminPanel';
 import PetCard from './components/PetCard';
 import Navbar from './components/Navbar';
 
-// Компонент для защиты маршрутов
+// Компонент для защиты приватных маршрутов
 const PrivateRoute = ({ children, allowedRoles }) => {
     const { user, loading, token } = useAuth();
     
     // Пока идёт загрузка — показываем индикатор
     if (loading) {
-        return (
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                height: '100vh',
-                fontSize: '18px',
-                color: '#2c3e50'
-            }}>
-                Загрузка...
-            </div>
-        );
+        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px', color: '#2c3e50' }}>Загрузка...</div>;
     }
     
-    // Если нет пользователя и нет токена — отправляем на логин
+    // Нет пользователя и нет токена — отправляем на логин
     if (!user && !token) {
         return <Navigate to="/login" />;
     }
     
-    // Если пользователь есть, но роль не подходит — отправляем на главную
+    // Пользователь есть, но роль не подходит — редирект на его главную
     if (user && allowedRoles && !allowedRoles.includes(user.role)) {
-        // Перенаправляем в зависимости от роли
         if (user.role === 'owner') return <Navigate to="/cabinet" />;
         if (user.role === 'doctor') return <Navigate to="/schedule" />;
         if (user.role === 'admin') return <Navigate to="/admin" />;
         return <Navigate to="/login" />;
     }
     
-    // Если пользователь загружен и роль подходит — показываем страницу
     return children;
 };
 
-// Компонент для публичных маршрутов (если пользователь уже залогинен — редирект)
+// Компонент для публичных маршрутов (если залогинен — редирект)
 const PublicRoute = ({ children }) => {
     const { user, loading, token } = useAuth();
     
     if (loading) {
-        return (
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                height: '100vh',
-                fontSize: '18px',
-                color: '#2c3e50'
-            }}>
-                Загрузка...
-            </div>
-        );
+        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px', color: '#2c3e50' }}>Загрузка...</div>;
     }
     
-    // Если пользователь залогинен — перенаправляем на его главную страницу
+    // Если залогинен — редирект на его страницу
     if (user && token) {
         if (user.role === 'owner') return <Navigate to="/cabinet" />;
         if (user.role === 'doctor') return <Navigate to="/schedule" />;

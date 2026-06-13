@@ -1,3 +1,6 @@
+// Компонент страницы входа 
+// При успешном входе перенаправляет в зависимости от роли пользователя
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';

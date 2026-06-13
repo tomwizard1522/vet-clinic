@@ -1,15 +1,16 @@
+// Маршруты для работы с медицинскими картами
+
 const express = require('express');
 const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Получить медицинские записи питомца
+// Получение всех мед. записей питомца
+// Доступ: владелец питомца, врач или админ
 router.get('/pet/:petId', authenticate, async (req, res) => {
     try {
         const { petId } = req.params;
-        
-        // Проверка прав
         const petCheck = await pool.query('SELECT owner_id FROM pets WHERE id = $1', [petId]);
         if (petCheck.rows.length === 0) {
             return res.status(404).json({ error: 'Питомец не найден.' });
@@ -19,6 +20,7 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
             return res.status(403).json({ error: 'Нет доступа к медицинским записям.' });
         }
         
+        // Получаем все записи с именем врача
         const result = await pool.query(
             `SELECT mr.*, u.full_name as doctor_name
              FROM medical_records mr
@@ -35,12 +37,14 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
     }
 });
 
-// Создать медицинскую запись (только врач)
+// Создание мед.записи (заполнение карты)
+// Доступ: только врач 
+// Вызывается, когда врач завершает приём и вносит диагноз/лечение
 router.post('/', authenticate, authorize('doctor'), async (req, res) => {
     const { pet_id, appointment_id, visit_date, diagnosis, treatment, recommendations } = req.body;
     
     try {
-        // Получить doctor_id по user_id
+        // Получение doctor_id по user_id из токена
         const doctorResult = await pool.query(
             'SELECT id FROM doctors WHERE user_id = $1',
             [req.user.id]

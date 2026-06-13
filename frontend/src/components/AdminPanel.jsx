@@ -1,4 +1,11 @@
+// Панель администратора
+// просмотр статистики (количество пользователей, питомцев, записей)
+// управление пользователями (просмотр, удаление)
+// просмотр всех питомцев (с переходом в карточку)
+// просмотр всех записей
+
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,7 +33,6 @@ const AdminPanel = () => {
             setPets(petsRes.data);
             setAppointments(appointmentsRes.data);
             
-            // Статистика
             setStats({
                 totalUsers: usersRes.data.length,
                 totalPets: petsRes.data.length,
@@ -60,7 +66,6 @@ const AdminPanel = () => {
             <h1 style={{ marginBottom: '20px' }}>⚙️ Панель администратора</h1>
             <p style={{ marginBottom: '20px', color: '#666' }}>Добро пожаловать, {user?.full_name}</p>
             
-            {/* Статистика */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
                 <div style={{ background: '#3498db', color: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center' }}>
                     <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalUsers}</div>
@@ -80,14 +85,12 @@ const AdminPanel = () => {
                 </div>
             </div>
             
-            {/* Вкладки */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
                 <button onClick={() => setActiveTab('users')} style={{ padding: '10px 20px', background: activeTab === 'users' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'users' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>👥 Пользователи</button>
                 <button onClick={() => setActiveTab('pets')} style={{ padding: '10px 20px', background: activeTab === 'pets' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'pets' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🐾 Питомцы</button>
                 <button onClick={() => setActiveTab('appointments')} style={{ padding: '10px 20px', background: activeTab === 'appointments' ? '#2c3e50' : '#ecf0f1', color: activeTab === 'appointments' ? 'white' : '#333', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📅 Записи</button>
             </div>
             
-            {/* Таблица пользователей */}
             {activeTab === 'users' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -127,7 +130,7 @@ const AdminPanel = () => {
                 </div>
             )}
             
-            {/* Таблица питомцев */}
+            {/* Исправленная таблица питомцев */}
             {activeTab === 'pets' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -148,7 +151,9 @@ const AdminPanel = () => {
                                     <td style={{ padding: '12px' }}>{p.breed || '—'}</td>
                                     <td style={{ padding: '12px' }}>{p.owner_name}</td>
                                     <td style={{ padding: '12px' }}>
-                                        <button style={{ background: '#3498db', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Просмотр</button>
+                                        <Link to={`/pet/${p.id}`}>
+                                            <button style={{ background: '#3498db', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Просмотр</button>
+                                        </Link>
                                     </td>
                                 </tr>
                             ))}
@@ -157,7 +162,6 @@ const AdminPanel = () => {
                 </div>
             )}
             
-            {/* Таблица записей */}
             {activeTab === 'appointments' && (
                 <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>

@@ -1,3 +1,8 @@
+// Контекст для управления состоянием авторизации
+
+// Хранит данные пользователя, токен, функции входа/выхода/регистрации
+// При загрузке страницы проверяет сохранённый токен в localStorage
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
@@ -8,7 +13,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [token, setToken] = useState(localStorage.getItem('token'));  // Восстанавливаем токен при загрузке
 
     useEffect(() => {
         if (token) {
@@ -25,7 +30,6 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data);
         } catch (error) {
             console.error('Ошибка загрузки пользователя:', error);
-            // Если токен невалидный — удаляем его
             localStorage.removeItem('token');
             delete axios.defaults.headers.common['Authorization'];
             setToken(null);

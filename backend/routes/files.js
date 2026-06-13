@@ -1,3 +1,5 @@
+// Маршруты для работы с файлами (анализы, снимки, выписки)
+
 const express = require('express');
 const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -5,7 +7,9 @@ const upload = require('../middleware/upload');
 
 const router = express.Router();
 
-// Загрузить файл для питомца
+// Загрузка файла
+// multer для сохранения файла на диск
+// После сохранения - запись информации в БД
 router.post('/upload/:petId', authenticate, upload.single('file'), async (req, res) => {
     try {
         const { petId } = req.params;
@@ -15,7 +19,7 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
             return res.status(400).json({ error: 'Файл не загружен.' });
         }
         
-        // Проверка прав на питомца
+        // Пользователь должен иметь доступ к питомцу
         const petCheck = await pool.query(
             'SELECT owner_id FROM pets WHERE id = $1',
             [petId]
@@ -29,6 +33,7 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
             return res.status(403).json({ error: 'Нет прав на загрузку файлов для этого питомца.' });
         }
         
+        // Сохранение информации о файле в БД
         const result = await pool.query(
             `INSERT INTO files (pet_id, medical_record_id, file_name, file_path, file_type, file_size, uploaded_by) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -41,11 +46,12 @@ router.post('/upload/:petId', authenticate, upload.single('file'), async (req, r
             file: result.rows[0]
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Ошибка загрузки файла.' });
     }
 });
 
-// Получить все файлы питомца
+// Получение списка файлов питомца
 router.get('/pet/:petId', authenticate, async (req, res) => {
     try {
         const { petId } = req.params;
@@ -65,7 +71,9 @@ router.get('/pet/:petId', authenticate, async (req, res) => {
     }
 });
 
-// Скачать файл
+// Скачивание файла
+// Express автоматически устанавливает Content-Disposition: attachment
+// Браузер предложит сохранить файл
 router.get('/download/:id', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -84,7 +92,8 @@ router.get('/download/:id', authenticate, async (req, res) => {
     }
 });
 
-// Удалить файл
+// Удаление файла
+// Доступ: только админ
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
     try {
         await pool.query('DELETE FROM files WHERE id = $1', [req.params.id]);

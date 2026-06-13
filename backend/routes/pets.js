@@ -1,3 +1,5 @@
+// Маршруты для работы с питомцами
+
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/database');
@@ -5,7 +7,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Получить всех питомцев (для админа) или своих (для владельца)
+// Получение списка питомцев
+ 
+// Админ: все питомцы всех пользователей
+// Владелец: только его питомцы
+// Врач: маршрут через appointments
+
 router.get('/', authenticate, async (req, res) => {
     try {
         let query, params;
@@ -18,12 +25,9 @@ router.get('/', authenticate, async (req, res) => {
                 ORDER BY p.created_at DESC
             `;
             params = [];
-        } else {
-            query = `
-                SELECT * FROM pets 
-                WHERE owner_id = $1 
-                ORDER BY created_at DESC
-            `;
+        } 
+        else {
+            query = `SELECT * FROM pets WHERE owner_id = $1 ORDER BY created_at DESC`;
             params = [req.user.id];
         }
         
@@ -34,7 +38,8 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// Получить конкретного питомца
+// Получение одного питомца по ID
+
 router.get('/:id', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -51,7 +56,7 @@ router.get('/:id', authenticate, async (req, res) => {
         
         const pet = result.rows[0];
         
-        // Проверка прав
+        // Проверка прав доступа
         if (req.user.role !== 'admin' && req.user.role !== 'doctor' && pet.owner_id !== req.user.id) {
             return res.status(403).json({ error: 'Нет доступа к этому питомцу.' });
         }
@@ -62,7 +67,11 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 });
 
-// Добавить питомца
+// Добавление питомца
+
+// Доступ: владелец или админ
+// если админ — можно указать любого владельца, если владелец — используется его ID
+
 router.post('/', authenticate, authorize('owner', 'admin'), [
     body('name').notEmpty().withMessage('Кличка обязательна'),
     body('species').notEmpty().withMessage('Вид обязателен')
@@ -73,6 +82,7 @@ router.post('/', authenticate, authorize('owner', 'admin'), [
     }
     
     const { name, species, breed, birth_date, gender, weight, medical_notes, chronic_diseases, allergies } = req.body;
+
     const owner_id = req.user.role === 'admin' ? req.body.owner_id : req.user.id;
     
     try {
@@ -89,7 +99,10 @@ router.post('/', authenticate, authorize('owner', 'admin'), [
     }
 });
 
-// Обновить питомца
+// Обновление питомца
+
+// Доступ: владелец питомца или админ
+
 router.put('/:id', authenticate, authorize('owner', 'admin'), async (req, res) => {
     const { name, species, breed, birth_date, gender, weight, medical_notes, chronic_diseases, allergies } = req.body;
     
@@ -119,7 +132,10 @@ router.put('/:id', authenticate, authorize('owner', 'admin'), async (req, res) =
     }
 });
 
-// Удалить питомца
+// Удаление питомца
+ 
+// Доступ: владелец питомца или админ
+
 router.delete('/:id', authenticate, authorize('owner', 'admin'), async (req, res) => {
     try {
         const petCheck = await pool.query('SELECT owner_id FROM pets WHERE id = $1', [req.params.id]);

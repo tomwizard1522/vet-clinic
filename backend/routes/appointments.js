@@ -1,3 +1,5 @@
+// Маршруты для работы с записями на приём
+
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/database');
@@ -5,7 +7,11 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Получить записи (фильтр по роли)
+// Получение записей (фильтрация по роли)
+ 
+// Админ: видит все записи
+// Врач: видит записи, назначенные на него
+// Владелец: видит записи своих питомцев
 router.get('/', authenticate, async (req, res) => {
     try {
         let query, params;
@@ -13,7 +19,8 @@ router.get('/', authenticate, async (req, res) => {
         if (req.user.role === 'admin') {
             query = `
                 SELECT a.*, p.name as pet_name, u.full_name as owner_name, 
-                       d.user_id as doctor_user_id, doc.full_name as doctor_name
+                       d.user_id as doctor_user_id, doc.full_name as doctor_name,
+                       p.id as pet_id
                 FROM appointments a
                 JOIN pets p ON a.pet_id = p.id
                 JOIN users u ON p.owner_id = u.id
@@ -22,8 +29,8 @@ router.get('/', authenticate, async (req, res) => {
                 ORDER BY a.appointment_time DESC
             `;
             params = [];
-        } else if (req.user.role === 'doctor') {
-            // Получаем doctor_id по user_id
+        } 
+        else if (req.user.role === 'doctor') {
             const doctorResult = await pool.query(
                 'SELECT id FROM doctors WHERE user_id = $1',
                 [req.user.id]
@@ -39,7 +46,8 @@ router.get('/', authenticate, async (req, res) => {
                        p.id as pet_id, 
                        p.name as pet_name, 
                        u.id as owner_id,
-                       u.full_name as owner_name
+                       u.full_name as owner_name,
+                       u.phone as owner_phone
                 FROM appointments a
                 JOIN pets p ON a.pet_id = p.id
                 JOIN users u ON p.owner_id = u.id
@@ -47,7 +55,8 @@ router.get('/', authenticate, async (req, res) => {
                 ORDER BY a.appointment_time ASC
             `;
             params = [doctorId];
-        } else {
+        } 
+        else {
             query = `
                 SELECT a.*, 
                        p.name as pet_name, 
@@ -71,7 +80,8 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// Создать запись (владелец или админ)
+// Создание записи
+// Доступ: владелец питомца или админ
 router.post('/', authenticate, authorize('owner', 'admin'), [
     body('pet_id').notEmpty().withMessage('ID питомца обязателен'),
     body('doctor_id').notEmpty().withMessage('ID врача обязателен'),
@@ -86,7 +96,7 @@ router.post('/', authenticate, authorize('owner', 'admin'), [
     const { pet_id, doctor_id, appointment_time, reason } = req.body;
     
     try {
-        // Проверка, что питомец принадлежит текущему пользователю (если не админ)
+        // Если не админ, проверка, что питомец принадлежит текущему пользователю
         if (req.user.role !== 'admin') {
             const petCheck = await pool.query(
                 'SELECT owner_id FROM pets WHERE id = $1',
@@ -110,7 +120,8 @@ router.post('/', authenticate, authorize('owner', 'admin'), [
     }
 });
 
-// Обновить статус записи (врач или админ)
+// Обновление статуса записи
+// Доступ: врач или админ
 router.patch('/:id/status', authenticate, authorize('doctor', 'admin'), [
     body('status').isIn(['scheduled', 'completed', 'cancelled', 'no_show']).withMessage('Неверный статус')
 ], async (req, res) => {
@@ -140,15 +151,16 @@ router.patch('/:id/status', authenticate, authorize('doctor', 'admin'), [
     }
 });
 
-// Отменить запись (владелец, врач или админ)
+// Удаление записи
+// Доступ: владелец питомца, врач или админ
 router.delete('/:id', authenticate, async (req, res) => {
     try {
-        // Проверка прав на отмену
         let hasAccess = false;
         
         if (req.user.role === 'admin') {
-            hasAccess = true;
+            hasAccess = true;  // Админ может удалить любую запись
         } else if (req.user.role === 'doctor') {
+            // Врач может удалить запись, назначенную на него
             const doctorResult = await pool.query(
                 'SELECT id FROM doctors WHERE user_id = $1',
                 [req.user.id]
@@ -159,6 +171,7 @@ router.delete('/:id', authenticate, async (req, res) => {
             );
             hasAccess = checkResult.rows.length > 0;
         } else {
+            // Владелец может удалить запись своего питомца
             const checkResult = await pool.query(
                 `SELECT a.id FROM appointments a
                  JOIN pets p ON a.pet_id = p.id
