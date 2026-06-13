@@ -32,16 +32,6 @@ app.get('/api/test', (req, res) => {
     res.json({ message: 'API работает', success: true });
 });
 
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('❌ Ошибка подключения к базе данных:', err.message);
-        process.exit(1);
-    } else {
-        console.log('✅ База данных подключена успешно');
-        release();
-    }
-});
-
 // Настройка Middleware
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({ origin: FRONTEND_URL }));
