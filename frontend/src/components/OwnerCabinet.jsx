@@ -48,17 +48,28 @@ const OwnerCabinet = () => {
     };
 
     const handleAddPet = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await axios.post('${API_URL}/api/pets', newPet);
+    e.preventDefault();
+    console.log('📤 Отправка данных питомца:', newPet);
+    
+    try {
+        const response = await axios.post(`${API_URL}/api/pets`, newPet);
+        console.log('📥 Ответ сервера:', response.data);
+        console.log('📦 Тип ответа:', typeof response.data);
+        
+        // Проверка, что ответ — объект питомца (а не массив)
+        if (response.data && response.data.id) {
             setPets([...pets, response.data]);
             setShowAddForm(false);
             setNewPet({ name: '', species: '', breed: '', birth_date: '', gender: 'male', weight: '' });
-        } catch (error) {
-            console.error('Ошибка добавления питомца:', error);
-            alert('Ошибка добавления питомца');
+        } else {
+            console.error('❌ Неожиданный ответ сервера:', response.data);
+            alert('Ошибка: сервер вернул некорректные данные');
         }
-    };
+    } catch (error) {
+        console.error('❌ Ошибка добавления питомца:', error.response?.data || error.message);
+        alert('Ошибка добавления питомца: ' + (error.response?.data?.error || 'Неизвестная ошибка'));
+    }
+};
 
     const handleDeletePet = async (petId) => {
         if (window.confirm('Вы уверены, что хотите удалить питомца?')) {
